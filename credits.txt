@@ -1,0 +1,18 @@
+----CREDITS----
+A mod by Machin
+
+--SPRITES--
+Djinn -- Jolt Mech sprite base
+tosx -- Zeus Artillery icon base
+
+--PROGRAMMING HELP--
+NamesAreHard
+Truelch
+KnightMiner
+Lemonymous
+
+--TESTING--
+NamesAreHard
+Truelch
+
+Big thanks to anyone else I might have forgotten, and to #modding-creation/discussion for the help and general Good Vibes!
