@@ -22,7 +22,7 @@ local Weapon_Texts = {
 	
 	--Smoke Detonator (previously Fulminant Smoke)
 	Machin_Science_FulminantSmoke_Name = "Smoke Detonator",
-	Machin_Science_FulminantSmoke_Description = "Removes Smoke, damaging the tile and four oblique tiles. Grid Buildings are immune.", 
+	Machin_Science_FulminantSmoke_Description = "Removes Smoke, damaging the tile and four oblique or adjacent tiles. Grid Buildings are immune.", 
 	Machin_Science_FulminantSmoke_Upgrade1 = "+1 Damage",
 	Machin_Science_FulminantSmoke_A_UpgradeDescription = "Increases damage by 1.",
 	Machin_Science_FulminantSmoke_Upgrade2 = "Shield Ally",

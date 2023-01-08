@@ -3,12 +3,15 @@ local path = mod_loader.mods[modApi.currentMod].resourcePath
 local mod = mod_loader.mods[modApi.currentMod]
 local resourcePath = mod.resourcePath
 local scriptPath = mod.scriptPath
-local previewer = require(scriptPath.."weaponPreview/api")
-local modApiExt = require(mod.scriptPath.."modApiExt/modApiExt")
 
---local achvApi = require(path .."scripts/achievements/api")
-local function IsTipImage()
-	return Board:GetSize() == Point(6,6)
+local debugging = true
+local test_scenario_counts = true --useful for getting achievements in the test scenario, although it screws with mission hooks
+
+local function CheckRealConditions() -- check that we're not in tip image, attack preview, test scenario, etc.
+	if ((IsTestMechScenario() or not mission) and not test_scenario_counts) or modApi:isTipImage() then
+		return false
+	end
+	return true
 end
 
 Machin_Prime_PropellerLegs = Prime_TC_Feint:new{  
@@ -18,13 +21,13 @@ Machin_Prime_PropellerLegs = Prime_TC_Feint:new{
 	Icon = "weapons/MachinPropellerLegsIcon.png",
 	Rarity = 3,
 	Explosion = "explodrill",
-	LaunchSound = "weapons/titan_fist",--"/weapons/wind",
+	LaunchSound = "weapons/titan_fist",
 	Range = 8, -- Tooltip?
 	PathSize = 1,
 	Damage = 1,
 	SelfDamage = 0, 
 	Push = 1, --Mostly for tooltip, but you could turn it off for some unknown reason
-	PowerCost = 0, --AE Change
+	PowerCost = 0,
 	Upgrades = 2,
 	UpgradeCost = {2,3},
 	TipImage = {
@@ -48,36 +51,41 @@ Machin_Prime_PropellerLegs_AB = Machin_Prime_PropellerLegs:new{
 --I don't like having to copy-paste Spring-Loaded Legs's whole code, but I dunno if there's a better way
 function Machin_Prime_PropellerLegs:GetFinalEffect(p1, p2, p3)
 	local ret = Prime_TC_Feint.GetFinalEffect(self,p1,p2,p3)
-	if not IsTipImage() then
+	if CheckRealConditions() then
+			if debugging then LOG("Checking temp killcount...") end
 			ret:AddDelay(1.016)
 			ret:AddScript("Machin_Prime_PropellerLegs:CheckTempKillcount()")
 	end
 	return ret
 end	
 function Machin_Prime_PropellerLegs:ResetTempKillcount()
-	local m = GetCurrentMission()
-	if not m or not Board then return end
-	m.machin_propeller_temp_kills = 0
+	if debugging then LOG("Resetting temp killcount...") end
+	if not CheckRealConditions() then return end
+	--local m = GetCurrentMission()
+	m = GetCurrentMission()
+	m.propeller_temp_kills = 0
 end
-function Machin_Prime_PropellerLegs:CheckTempKillcount()
-	LOG("We've called CheckTempKillcount")
-	local m = GetCurrentMission()
-	--if not m or not Board then return end
-	--LOG("We didn't exit prematurely")
+function Machin_Prime_PropellerLegs:CheckTempKillcount()	
+	if debugging then LOG("We've called CheckTempKillcount. Checking if this is a real mission...") end
+	if not CheckRealConditions() then return end
+	
+	m = GetCurrentMission()
+	
+	--local m = GetCurrentMission()
+	if debugging then LOG("Yes. This isn't a tip image, preview or test scenario.") end
+	if debugging then LOG("Kill count is "..m.propeller_kills..", temp count is "..m.propeller_temp_kills) end
 
-	if m.machin_propeller_temp_kills > 0 then
-		m.machin_propeller_kills = m.machin_propeller_kills+m.machin_propeller_temp_kills
-		LOG("Regular killcount has been updated to:")
-		LOG(m.machin_propeller_kills)
-		if m.machin_propeller_kills >= m.machin_propeller_kills_goal then
-			modApi.achievements:trigger("Machin - Storm Heralds","machin_ach_pounce")
-			--ret:AddScript("machin_stormsquad_Chievo('machin_storm_pounce')")
+
+	if m.propeller_temp_kills > 0 then
+		m.propeller_kills = m.propeller_kills+m.propeller_temp_kills
+		Machin_Prime_PropellerLegs:ResetTempKillcount()
+		if debugging then LOG("Regular killcount has been updated to: "..m.propeller_kills) end
+		if m.propeller_kills >= m.propeller_kills_goal then
+			modApi.achievements:trigger("Machin - Storm Heralds","machin_ach_pounce",true)
+			if debugging then LOG("That's enough to trigger the achievement!") end
 		end
 	end
-	LOG("Kill count is ")
-	LOG(m.machin_propeller_kills)
-	LOG("Temp count is")
-	LOG(m.machin_propeller_temp_kills)
+	if debugging then LOG("Kill count is "..m.propeller_kills..", temp count is "..m.propeller_temp_kills) end
 end
 			 
 
@@ -90,7 +98,7 @@ Machin_Ranged_ZeusArtillery = LineArtillery:new{
 	ArtilleryStart = 2,
 	ArtillerySize = 8,
 	Explosion = "",
-	PowerCost = 0, --AE Change
+	PowerCost = 0,
 	BounceAmount = 1,
 	Damage = 2,
 	LaunchSound = "/weapons/grid_defense",
@@ -145,9 +153,6 @@ function Machin_Ranged_ZeusArtillery:GetSkillEffect(p1, p2)
 	
 	if Board:IsPawnSpace(p2) or (self.SmokeChain and Board:IsSmoke(p2)) then
 		ret:AddAnimation(p2,"Lightning_Hit")
-		--if self.SmokeChain and Board:IsSmoke(p2) then
-			--achvApi:TriggerChievo("chainsmoke", {progress = 0})
-		--end
 	end
 	
 	local hide_initial_jolt = true
@@ -159,9 +164,10 @@ function Machin_Ranged_ZeusArtillery:GetSkillEffect(p1, p2)
 			explored[hash(current)] = true
 			
 			if Board:IsPawnSpace(current) or (self.SmokeChain and Board:IsSmoke(current)) then
-				if (self.SmokeChain and Board:IsSmoke(current)) and not IsTipImage() then
+				if (self.SmokeChain and Board:IsSmoke(current)) and CheckRealConditions()  then
 					ret:AddScript("modApi.achievements:addProgress('Machin - Storm Heralds','machin_ach_chainsmoke', 1)")
-					LOG("Added progress on Chain Smoker. Current is: "..tostring(modApi.achievements:getProgress('Machin - Storm Heralds','machin_ach_chainsmoke')))
+					--local logthis = "Added progress on Chain Smoker. Current is: "..tostring(modApi.achievements:getProgress('Machin - Storm Heralds','machin_ach_chainsmoke'))
+					--if debugging then ret:AddScript("LOG(logthis)") end
 				end
 				local direction = GetDirection(current - origin[hash(current)])
 				if hide_initial_jolt then
@@ -170,7 +176,7 @@ function Machin_Ranged_ZeusArtillery:GetSkillEffect(p1, p2)
 					damage.sAnimation = "Lightning_Attack_"..direction
 				end
 				damage.loc = current
-				damage.iDamage = self.Damage-- Board:IsSmoke(current) and DAMAGE_ZERO or self.Damage
+				damage.iDamage = self.Damage
 				
 				if Board:IsBuilding(current) then
 					damage.iDamage = DAMAGE_ZERO
@@ -219,7 +225,6 @@ Machin_Science_ConfusionFumes = Skill:new {
 	PowerCost = 0,
 	Upgrades = 0,
 	UpgradeCost = {1,2},
-	LaunchSound = "",
 	ImpactSound = "",
 	--CustomTipImage = "Machin_Science_ConfusionFumes_Tip",
 	TipImage = StandardTips.Melee,
@@ -236,18 +241,6 @@ function Machin_Science_ConfusionFumes:GetSkillEffect(p1,p2)
 	smoke.sAnimation = "exploout0_"..GetDirection(p2 - p1)
 	ret:AddDamage(smoke)
 	
-	--Old Flip + Smoke behind code
-	--[[local damage = SpaceDamage(target, self.Damage)
-	if self.Flip == 1 then
-		damage = SpaceDamage(target,self.Damage,DIR_FLIP)
-	end
-	ret:AddDamage(damage)
-	
-	local smoke = SpaceDamage(p1 - DIR_VECTORS[GetDirection(p2 - p1)],0)
-	smoke.iSmoke = 1
-	smoke.sAnimation = "exploout0_"..GetDirection(p1 - p2)
-	ret:AddDamage(smoke)--]]
-	
 	return ret
 end
 
@@ -257,36 +250,19 @@ Machin_Science_FulminantSmoke = Skill:new{
 	Name = "Smoke Detonator",
 	Description = "Removes Smoke, damaging the tile and four adjacent or oblique tiles. Grid Buildings are immune.", 
 	PowerCost = 0,
-	--Limited = 2,
 	Range = 0,
-	LaunchSound = "/props/lightning_strike",--"/weapons/void_shocker",-- 
-	--Explosion = "explo_fire1",  --explo_fire1
-	--ZoneTargeting = ZONE_ALL,
+	LaunchSound = "",--"/weapons/void_shocker",-- 
 	Damage = 2,
 	SelfDamage = 0,
 	ShieldFriendly = false,
 	TwoClick = true, --Can just revert to 1-click if desired, the way I've set it up :D
-	--CustomTipImage = "Machin_Science_FulminantSmoke_Tooltip",
 	Upgrades = 2,
 	UpgradeCost = {2,2},
 	TipIndex = 0,
-	--CustomTipImage = "Machin_Science_FulminantSmoke_Tip",
-	--[[TipImage = {
-		Unit = Point(1,3),
-		Enemy = Point(1,1),
-		Enemy = Point(2,1),
-		Smoke = Point(2,1),
-		Building = Point(1,2),
-		Target = Point(2,1),
-		Second_Click = Point(3,2), 
-		Length = 5
-	}--]]
 	TipImage = {
 		Unit = Point(1,3),
 		Enemy = Point(2,1),
-		--Enemy = Point(4,1),
 		Smoke = Point(2,1),
-		--Smoke2 = Point(2,2),
 		Building = Point(1,2),
 		Building2 = Point(1,1),
 		Target = Point(2,1),
@@ -295,46 +271,6 @@ Machin_Science_FulminantSmoke = Skill:new{
 	}
 }
 
---[[Machin_Science_FulminantSmoke_Tip = Machin_Science_FulminantSmoke:new{
-	TipImage = {
-		Unit = Point(1,3),
-		Enemy = Point(2,1),
-		--Enemy = Point(4,1),
-		Smoke = Point(2,1),
-		--Smoke2 = Point(2,2),
-		Building = Point(1,2),
-		Target = Point(2,1),
-		Second_Click = Point(3,2), 
-		Length = 5,
-	}
-}
-
-function Machin_Science_FulminantSmoke_Tip:GetSkillEffect(p1,p2)
-	local ret = SkillEffect()
-
-	local damage = SpaceDamage(0)
-	damage.bHide = true
-	--damage.fDelay = 1.5
-	damage.sScript = "Board:GetPawn(Point(1,3)):FireWeapon(Point(2,1),1) Board:GetPawn(Point(1,3)):FireWeapon(Point(3,2),1)"
-	--damage.sScript = "Board:GetPawn(Point(4,1)):FireWeapon(Point(2,2),1) Board:GetPawn(Point(1,3)):FireWeapon(Point(2,3),1)"
-	ret:AddDamage(damage)
-	
-	local resetsmoke = SpaceDamage(0)
-	resetsmoke.bHide = true
-	--resetsmoke.iSmoke = 1
-	resetsmoke.fDelay = 1.5
-	ret:AddDamage(resetsmoke)
-	
-	local damage2 = SpaceDamage(0)
-	damage2.bHide = true
-	damage2.fDelay = 1.5
-	damage2.sScript = "Board:GetPawn(Point(2,2)):FireWeapon(Point(2,1),1)"
-	--damage2.sScript = "Board:GetPawn(Point(1,3)):FireWeapon(Point(2,2),1)"
-	ret:AddDamage(damage2)
-	
-	return ret
-end
---]]
 Machin_Science_FulminantSmoke_A = Machin_Science_FulminantSmoke:new{
 	Damage = 3,
 }
@@ -343,9 +279,7 @@ Machin_Science_FulminantSmoke_B = Machin_Science_FulminantSmoke:new{
 	TipImage = {
 		Unit = Point(1,3),
 		Enemy = Point(2,1),
-		--Enemy = Point(4,1),
 		Smoke = Point(2,1),
-		--Smoke2 = Point(2,2),
 		Building = Point(1,2),
 		Building2 = Point(1,1),
 		Target = Point(2,1),
@@ -420,7 +354,7 @@ function Machin_Science_FulminantSmoke:GetFinalEffect(p1, p2, p3)
 	end
 	
 	--Alternate adjacent and oblique in tip image
-	if IsTipImage() then 
+	if modApi:isTipImage() then 
 		if self.TipIndex == 0 then
 			self.TipIndex = 1
 			oblique = false
@@ -430,23 +364,19 @@ function Machin_Science_FulminantSmoke:GetFinalEffect(p1, p2, p3)
 		end
 	end
 	
-	local delay = SpaceDamage(p2, 0)
-	ret:AddDamage(delay)
-	if not IsTipImage() then ret:AddDelay(0.5) end
+	if not modApi:isTipImage() then ret:AddDelay(0.25) end
 	
 	local damage = SpaceDamage(p2, 0)
-	local ach_progress = 0 --Fulmination achievement
-	--ret:AddBounce(p2, 3)
 	damage.sAnimation = "LightningBolt"..random_int(2)
-	--damage.sSound = "/weapons/void_shock"--"/props/lightning_strike"
-	--damage.sSound = "/weapons/void_shocker"
+	ret:AddSound("/props/lightning_strike")
+	if not modApi:isTipImage() then ret:AddDelay(1) end
 	ret:AddDamage(damage)
+	
+	local ach_progress = 0 --Fulmination achievement
 	
 	local nosmoke = SpaceDamage(p2,0)
 	nosmoke.iSmoke = EFFECT_REMOVE
 	ret:AddDamage(nosmoke)
-	
-	
 	
 	for i = DIR_START,DIR_END do
 		--starfish attack
@@ -454,18 +384,18 @@ function Machin_Science_FulminantSmoke:GetFinalEffect(p1, p2, p3)
 		if oblique then current = p2 + DIR_VECTORS[i] + DIR_VECTORS[(i+1)%4] end
 		
 		--regular orthogonal
-		--local current = p2 + DIR_VECTORS[i]
 		if not Board:IsBuilding(current) then
 			if self.ShieldFriendly and Board:IsPawnTeam(current, TEAM_PLAYER) then
 				damage = SpaceDamage(current, 0)
+				
 				damage.sAnimation = "exploout0_"..i   
 				damage.iShield = 1
 				ret:AddDamage(damage)
 				
 				ach_progress = ach_progress + 1
-			else--if not Board:IsPawnSpace(p2) then
+			else
 				damage = SpaceDamage(current, self.Damage)
-				--damage.sSound = "/impact/generic/explosion"
+				--Some day I'd like to use oblique explosion animations. See init.lua. This will have to do though.
 				damage.sAnimation = "exploout2_"..i
 				ret:AddDamage(damage)
 				ret:AddBounce(current, 2)
@@ -506,60 +436,50 @@ function Machin_Science_FulminantSmoke:GetFinalEffect(p1, p2, p3)
 		ret:AddDamage(center)
 	end
 	
-	LOG("Checking fulmination... Progress is: "..tostring(ach_progress))
-	if ach_progress >= 3 and not IsTipImage() then--and not IsTestMechScenario() and not IsTipImage() then
-		LOG("Fulmination triggered!")
+	if debugging then LOG("Checking fulmination... Progress is: "..tostring(ach_progress)) end
+	if ach_progress >= 3 and CheckRealConditions() then
+		if debugging then LOG("Fulmination triggered!") end
 		ret:AddScript("modApi.achievements:trigger('Machin - Storm Heralds','machin_ach_fulmination',true)")
-		--ret:AddScript("machin_stormsquad_Chievo('machin_storm_fulmination')")
-	end
-	if not mission then
-		LOG("wtf?")
 	end
 	
 	return ret
-end
+end 
 
 -- weapon.lua achievement tracker
 local this = {}
 
 function this:load(mod, options, version)
-	LOG("Loading MissionStart, PawnKilled and SkillStart hooks from weapons.lua.")
+	if debugging then LOG("Loading MissionStart, PawnKilled and SkillStart hooks from weapons.lua.") end
 
-	local hook = function()
-		LOG("Mission starts hook")
+	local hook = function(mission)
+		if debugging then LOG("Initiating kill counter.") end
 		-- Initiate Propeller Legs killcount progress on mission start
-		local m = GetCurrentMission()
-		if not m then return end
-		LOG("Initializing Propeller variables...")
-		m.machin_propeller_temp_kills = 0
-		m.machin_propeller_kills = 0
-		m.machin_propeller_kills_goal = 5
-		--local id = "machin_achv_pounce"
-		--m[id] = 0
+		if not CheckRealConditions() then return end
+		m = GetCurrentMission()
+		m.propeller_temp_kills = 0
+		m.propeller_kills = 0
+		m.propeller_kills_goal = 5
 	end
 	modApi:addMissionStartHook(hook)
 	
-	--modApi:addMissionStartHook(startHook)
-	--LOG("Adding Propeller achievement hooks...")
 	local hook = function(m, pawn)
-	LOG("pawn killed (weapsns hook)")
-		if pawn:GetTeam() == TEAM_ENEMY then
-			LOG("Incrementing temp kill counter!")
-			m.machin_propeller_temp_kills = m.machin_propeller_temp_kills+1
+		if CheckRealConditions() then
+			if pawn:GetTeam() == TEAM_ENEMY then
+				if debugging then LOG("Incrementing temp kill counter!") end
+				m.propeller_temp_kills = m.propeller_temp_kills+1
+			end
 		end
 	end
-	Machin_StormHeralds_ModApiExt:addPawnKilledHook(hook)
+	modapiext:addPawnKilledHook(hook)
 
 	local hook = function(mission, pawn, weaponId, p1, p2)
-		local m = GetCurrentMission()
-		if not m or not Board then return end
-		
-		if not IsTipImage() then
-			LOG("Resetting temp kill counter")
+		if CheckRealConditions() then
+			--m = GetCurrentMission()
+			if debugging then LOG("Resetting temp kill counter") end
 			--Someone started using a skill, reset the temp killcount tracker
 			Machin_Prime_PropellerLegs:ResetTempKillcount()
 		end
 	end
-	Machin_StormHeralds_ModApiExt:addSkillStartHook(hook)
+	modapiext:addSkillStartHook(hook)
 end
 return this

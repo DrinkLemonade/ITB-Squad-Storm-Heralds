@@ -14,7 +14,7 @@ Machin_StrikeMech = Pawn:new {
 	SkillList = {"Machin_Prime_PropellerLegs"},
 	DefaultTeam = TEAM_PLAYER,
 	ImpactMaterial = IMPACT_METAL,
-	SoundLocation = "/mech/prime/punch_mech/",
+	SoundLocation = "/mech/prime/inferno_mech/",
 	Massive = true,
 	Flying = false
 }
@@ -31,7 +31,7 @@ Machin_JoltMech = Pawn:new {
 	SkillList = {"Machin_Ranged_ZeusArtillery"},
 	DefaultTeam = TEAM_PLAYER,
 	ImpactMaterial = IMPACT_METAL,
-	SoundLocation = "/mech/prime/rock_mech/",
+	SoundLocation = "/mech/distance/trimissile_mech/",
 	Massive = true,
 	Flying = false
 }
@@ -48,7 +48,7 @@ Machin_DoomMech = Pawn:new {
 	DefaultTeam = TEAM_PLAYER,
 	ImpactMaterial = IMPACT_METAL,
 	Massive = true,
-	SoundLocation = "/mech/science/science_mech/",
+	SoundLocation = "/mech/science/hydrant_mech/",
 	Flying = true,
 	Armor = true,
 }

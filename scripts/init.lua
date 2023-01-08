@@ -7,48 +7,31 @@ local function init(self)
 	local mod = mod_loader.mods[modApi.currentMod]
 	local resourcePath = mod.resourcePath
 	local scriptPath = mod.scriptPath
-	
-	--ModApiExt
-	if modApiExt then
-		-- modApiExt already defined. This means that the user has the complete
-		-- ModUtils package installed. Use that instead of loading our own one.
-		Machin_StormHeralds_ModApiExt = modApiExt
-	else
-		-- modApiExt was not found. Load our inbuilt version
-		local extDir = self.scriptPath.."modApiExt/"
-		Machin_StormHeralds_ModApiExt = require(extDir.."modApiExt")
-		Machin_StormHeralds_ModApiExt:init(extDir)
-	end
-	
-	--require(self.scriptPath .."achievements/init")
-	--require(self.scriptPath .."achievements")
-	--require(self.scriptPath .."achievementTriggers"):init()
-	
+
 	--Achievements
-	--local achvApi = require(self.scriptPath.."/achievements/api")
 	modApi.achievements:add{
 	id = "machin_ach_pounce",
 	name = "Tacklepounce",
 	image = resourcePath.."img/achievements/pounce.png",
-	tooltip = "Kill 5 Vek with Propeller Legs in one mission.",
-	objective = 5,
-	squad = "Machin - Storm Heralds"
+	tooltip = "Kill 5 Enemies with Propeller Legs in one mission.",--\n\nProgress: $ kills",
+	objective = true,--might change this to a trackable progress achievement in the future
+	squad = "Machin_StormHeraldsSquad"
 	}
 	modApi.achievements:add{
 	id = "machin_ach_chainsmoke",
 	name = "Chain Smoker",
 	image = resourcePath.."img/achievements/chainsmoke.png",
-	tooltip = "Have Zeus Artillery chain through 40 Smoke tiles in one game. (Currently you only need 4 tiles for testing purposes)",
+	tooltip = "Have Zeus Artillery chain through 40 Smoke tiles in one game.\n\nProgress: $ tiles",
 	objective = 40,
-	squad = "Machin - Storm Heralds"
+	squad = "Machin_StormHeraldsSquad"
 	}
 	modApi.achievements:add{
 	id = "machin_ach_fulmination",
 	name = "Fulmination (Is A Cool Word)",
 	image = resourcePath.."img/achievements/fulmination.png",
-	tooltip = "Use Smoke Detonator on at least 3 units (harming Enemies, shielding Allies or both).",
+	tooltip = "Use Smoke Detonator on at least 3 units at once (harming Enemies, shielding Allies or both).",
 	objective = true,
-	squad = "Machin - Storm Heralds"
+	squad = "Machin_StormHeraldsSquad"
 	}
 	
 	--Sprites
@@ -82,15 +65,32 @@ local function init(self)
 		}
 	)
 	
+	--[[When Smoke Detonator is used on adjacent tiles, it uses one explosion for every direction (N/E/S/W)
+	For oblique tiles however (NE/NW/SE/SW), I'd need to draw a custom explosion direction and add it as an animation.
+	I've done so, but only for the left-facing explosion. Making the other 3 would be significant busywork for little gain.
+	Maybe some day? I'm sure some mod in the future will have a use for diagonal explosions.
+	Until then, my left-facing explosion can be found in the mod's effects folder.
+	--Animations
+	for i = DIR_START, DIR_END do 
+	ANIMS["diagburst_"..i] = ANIMS.Animation:new{
+		Image = "effects/diagburst_"..i..".png",
+		NumFrames = 9,
+		Time = 1,
+		PosX = 0,
+		PosY = 0,
+		LOG("Added anim")
+	}
+	end]]
+	
 	--Palette
 	palettes.addPalette({
 		ID = "Machin_StormHeralds",
 		Name = "Storm Heralds",
 		PlateHighlight = {122, 205,  250},
-		PlateLight     = {208, 183,  123}, --{219, 204,  86}, 
-		PlateMid       = {170, 107,  102}, --{212, 212,   0}, 
-		PlateDark      = { 110,  62,  67}, --{189, 167,   0}, 
-		PlateOutline   = { 69,  40,  43}, --{  2,   2,   1},
+		PlateLight     = {208, 183,  123},
+		PlateMid       = {170, 107,  102},
+		PlateDark      = { 110,  62,  67},
+		PlateOutline   = { 69,  40,  43},
 		PlateShadow    = { 34,  39,  54},
 		BodyColor      = {58, 61,  80}, 
 		BodyHighlight  = {104, 109, 111}, 
@@ -99,9 +99,9 @@ local function init(self)
 	--Scripts
 	require(self.scriptPath.."weapons")
 	require(self.scriptPath.."pawns")
-	require(self.scriptPath.."animations")
 	require(self.scriptPath.."hooks")
-	
+	require(self.scriptPath .. "hooks"):load()
+
 	--Weapon Texts
 	modApi:addWeapon_Texts(require(self.scriptPath .. "weapons_text"))
 	
@@ -110,17 +110,10 @@ local function init(self)
 	modApi:appendAsset("img/weapons/MachinZeusArtilleryIcon.png",self.resourcePath.."img/weapons/MachinZeusArtilleryIcon.png")
 	modApi:appendAsset("img/weapons/MachinConfusionFumesIcon.png",self.resourcePath.."img/weapons/MachinConfusionFumesIcon.png")
 	modApi:appendAsset("img/weapons/MachinFulminantSmokeIcon.png",self.resourcePath.."img/weapons/MachinFulminantSmokeIcon.png")
-	--modApi:appendAsset("img/effects/fake_health_bar.png", mod.resourcePath .."img/effects/fake_health_bar.png")
-	--modApi:appendAsset("img/effects/machin_zap_bolt.png", mod.resourcePath .."img/effects/machin_zap_bolt.png")
-
-	
-	--Weapon Effects
-	--modApi:appendAsset("img/effects/spark_shotup.png",self.resourcePath.."img/effects/spark_shotup.png")
 	
 	local a = ANIMS
 	a.machin_zap_bolt = a.BaseUnit:new{Image = "effects/machin_zap_bolt.png", PosX = -14, PosY = -90, NumFrames = 1, Time = 0.25, Loop = false}
 
-	--local shop = require(self.scriptPath .."libs/shop")
 	modApi:addWeaponDrop{id = "Machin_Prime_PropellerLegs", pod = true, shop = true }
 	modApi:addWeaponDrop{id = "Machin_Ranged_ZeusArtillery", pod = true, shop = true }
 	-- Proximity Fumes is kinda boring on its own, so we don't add it by default
@@ -130,14 +123,23 @@ local function init(self)
 
 end
 local function load(self,options,version)
-	Machin_StormHeralds_ModApiExt:load(self, optoins, version)
-	--require(self.scriptPath .."weaponPreview/api"):load()
+	--Machin_StormHeralds_ModApiExt:load(self, options, version)
 
 	--needed for achievement hooks too?
 	require(self.scriptPath .. "hooks"):load()
-    require(self.scriptPath .. "weapons"):load() -- add achievement hooks
-	
-	modApi:addSquadTrue({"Storm Heralds", "Machin_StrikeMech", "Machin_JoltMech", "Machin_DoomMech"}, "Storm Heralds", "These Mechs weaken the Vek with lightning and smoke, then bring wrathful storms upon them.",self.resourcePath.."/squadIcon.png") --, self.scriptPath.."squadIcon"
+    require(self.scriptPath .. "weapons"):load() -- add achievement hooks/functions
+	modApi:addSquad(
+		{
+			id = "Machin_StormHeraldsSquad",
+			"Storm Heralds",
+			"Machin_StrikeMech",
+			"Machin_JoltMech",
+			"Machin_DoomMech"
+		},
+		"Storm Heralds",
+		"These Mechs use clouds of smoke first to hold back the Vek, then to unleash wrathful storms upon them.",
+		self.resourcePath.."/squadIcon.png"
+	)
 end
 
 return {
@@ -145,8 +147,9 @@ return {
     name = "Storm Heralds",
 	icon = "modIcon.png",
 	description = "These Mechs use smoke to deliver wrathful lightning and blast the Vek to pieces.",
-    version = "1.0.0",
+    version = "1.1.0",
 	requirements = { "kf_ModUtils" },
+	dependencies = { modApiExt = "1.17" },
     init = init,
 	metadata = metadata,
     load = load
